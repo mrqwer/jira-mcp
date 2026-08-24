@@ -159,6 +159,8 @@ args = ["/ABSOLUTE/PATH/jira-mcp/main.py"]
 - `update_ticket`
 - `assign_ticket`
 - `add_comment`
+- `add_attachment`
+- `delete_attachment`
 - `change_status`
 - `add_worklog`
 - `link_tickets`

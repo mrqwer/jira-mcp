@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import main
@@ -27,6 +29,38 @@ class JiraToolsTest(unittest.TestCase):
         self.assertEqual(fields["summary"], "Useful title")
         self.assertEqual(fields["customfield_10000"], 3)
         self.assertEqual(result["browse_url"], f"{main.JIRA_URL}/browse/PROJ-1")
+
+    @patch("main._request")
+    def test_add_attachment_sends_multipart_with_no_check_token(self, request):
+        request.return_value = [{"id": "10001", "filename": "screenshot.png"}]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / "screenshot.png"
+            file_path.write_bytes(b"fake-png-bytes")
+
+            result = main.add_attachment("PROJ-1", str(file_path))
+
+        self.assertEqual(result, {"id": "10001", "filename": "screenshot.png"})
+        call_kwargs = request.call_args.kwargs
+        self.assertEqual(
+            call_kwargs["headers"], {"X-Atlassian-Token": "no-check"}
+        )
+        self.assertEqual(call_kwargs["files"]["file"][0], "screenshot.png")
+        self.assertEqual(request.call_args.args, ("POST", "issue/PROJ-1/attachments"))
+
+    def test_add_attachment_rejects_missing_file(self):
+        with self.assertRaises(ValueError):
+            main.add_attachment("PROJ-1", "no-such-file.png")
+
+    @patch("main._request")
+    def test_delete_attachment_calls_expected_endpoint(self, request):
+        request.return_value = {}
+
+        result = main.delete_attachment("15152")
+
+        self.assertEqual(request.call_args.args, ("DELETE", "attachment/15152"))
+        self.assertEqual(request.call_args.kwargs["expected"], (204,))
+        self.assertEqual(result, {"deleted_attachment_id": "15152"})
 
     @patch("main._request")
     def test_change_status_uses_target_status_name(self, request):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -311,6 +312,35 @@ def add_comment(
         expected=(201,),
         json={"body": comment_text},
     )
+
+
+@mcp.tool()
+def add_attachment(issue_key: str, file_path: str) -> dict[str, Any]:
+    """Upload a local file as an attachment to a Jira issue."""
+    path = Path(file_path)
+    if not path.is_file():
+        raise ValueError(f"File not found: {file_path}")
+
+    with path.open("rb") as fh:
+        data = _request(
+            "POST",
+            _issue_path(issue_key, "/attachments"),
+            headers={"X-Atlassian-Token": "no-check"},
+            files={"file": (path.name, fh)},
+        )
+
+    return data[0] if isinstance(data, list) and len(data) == 1 else data
+
+
+@mcp.tool()
+def delete_attachment(attachment_id: str) -> dict[str, Any]:
+    """Permanently delete a Jira attachment by its ID."""
+    _request(
+        "DELETE",
+        f"attachment/{quote(attachment_id, safe='')}",
+        expected=(204,),
+    )
+    return {"deleted_attachment_id": attachment_id}
 
 
 @mcp.tool()
