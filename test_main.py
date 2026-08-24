@@ -63,6 +63,24 @@ class JiraToolsTest(unittest.TestCase):
         self.assertEqual(result, {"deleted_attachment_id": "15152"})
 
     @patch("main._request")
+    def test_get_project_statuses_calls_expected_endpoint(self, request):
+        request.return_value = [{"name": "Задача", "statuses": []}]
+
+        result = main.get_project_statuses("PROJ")
+
+        self.assertEqual(request.call_args.args, ("GET", "project/PROJ/statuses"))
+        self.assertEqual(result, [{"name": "Задача", "statuses": []}])
+
+    @patch("main._request")
+    def test_get_all_statuses_calls_expected_endpoint(self, request):
+        request.return_value = [{"id": "10201", "name": "Готово"}]
+
+        result = main.get_all_statuses()
+
+        self.assertEqual(request.call_args.args, ("GET", "status"))
+        self.assertEqual(result, [{"id": "10201", "name": "Готово"}])
+
+    @patch("main._request")
     def test_change_status_uses_target_status_name(self, request):
         request.side_effect = [
             {

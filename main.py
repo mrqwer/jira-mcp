@@ -135,6 +135,18 @@ def get_project_issue_types(project_key: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def get_project_statuses(project_key: str) -> list[dict[str, Any]]:
+    """List valid statuses per issue type for a project (the real status set, not per-issue transitions)."""
+    return _request("GET", f"project/{quote(project_key, safe='')}/statuses")
+
+
+@mcp.tool()
+def get_all_statuses() -> list[dict[str, Any]]:
+    """List every status defined in this Jira instance, across all projects."""
+    return _request("GET", "status")
+
+
+@mcp.tool()
 def get_create_fields(project_key: str, issue_type: str) -> dict[str, Any]:
     """Return required and optional create fields for one project and issue type."""
     data = _request(
