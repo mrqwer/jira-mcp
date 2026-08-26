@@ -52,6 +52,35 @@ class JiraToolsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             main.add_attachment("PROJ-1", "no-such-file.png")
 
+    @patch("main._client")
+    @patch("main._request")
+    def test_download_attachment_fetches_content_url_and_saves_file(
+        self, request, client
+    ):
+        request.return_value = {
+            "filename": "screenshot.png",
+            "mimeType": "image/png",
+            "size": 4,
+            "content": "http://jira.example.com/secure/attachment/15152/screenshot.png",
+        }
+        client.return_value.get.return_value.status_code = 200
+        client.return_value.get.return_value.content = b"fake"
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_path = Path(tmp_dir) / "out.png"
+
+            result = main.download_attachment("15152", str(save_path))
+
+            self.assertEqual(save_path.read_bytes(), b"fake")
+
+        self.assertEqual(request.call_args.args, ("GET", "attachment/15152"))
+        client.return_value.get.assert_called_once_with(
+            "http://jira.example.com/secure/attachment/15152/screenshot.png",
+            timeout=main.JIRA_TIMEOUT,
+        )
+        self.assertEqual(result["filename"], "screenshot.png")
+        self.assertEqual(result["size"], 4)
+
     @patch("main._request")
     def test_delete_attachment_calls_expected_endpoint(self, request):
         request.return_value = {}

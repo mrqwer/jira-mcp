@@ -149,6 +149,7 @@ args = ["/ABSOLUTE/PATH/jira-mcp/main.py"]
 - `get_project_issue_types`
 - `get_create_fields`
 - `find_users`
+- `download_attachment`
 - `list_transitions`
 - `get_link_types`
 - `get_remote_links`
