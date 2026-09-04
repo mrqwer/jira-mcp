@@ -92,6 +92,16 @@ class JiraToolsTest(unittest.TestCase):
         self.assertEqual(result, {"deleted_attachment_id": "15152"})
 
     @patch("main._request")
+    def test_delete_link_calls_expected_endpoint(self, request):
+        request.return_value = {}
+
+        result = main.delete_link("10050")
+
+        self.assertEqual(request.call_args.args, ("DELETE", "issueLink/10050"))
+        self.assertEqual(request.call_args.kwargs["expected"], (204,))
+        self.assertEqual(result, {"deleted": True, "link_id": "10050"})
+
+    @patch("main._request")
     def test_get_project_statuses_calls_expected_endpoint(self, request):
         request.return_value = [{"name": "Задача", "statuses": []}]
 

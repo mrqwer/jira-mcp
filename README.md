@@ -165,6 +165,7 @@ args = ["/ABSOLUTE/PATH/jira-mcp/main.py"]
 - `change_status`
 - `add_worklog`
 - `link_tickets`
+- `delete_link`
 
 Перед созданием задачи или сменой статуса агент должен сначала проверить
 доступные типы, поля и переходы.

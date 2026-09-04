@@ -494,6 +494,17 @@ def link_tickets(
 
 
 @mcp.tool()
+def delete_link(link_id: str) -> dict[str, Any]:
+    """Remove a link between two Jira issues by its link ID (issuelinks[].id from get_ticket/search_tickets)."""
+    _request(
+        "DELETE",
+        f"issueLink/{quote(link_id, safe='')}",
+        expected=(204,),
+    )
+    return {"deleted": True, "link_id": link_id}
+
+
+@mcp.tool()
 def get_remote_links(issue_key: str) -> list[dict[str, Any]]:
     """List remote links attached to an issue, such as Confluence or repository URLs."""
     data = _request("GET", _issue_path(issue_key, "/remotelink"))
