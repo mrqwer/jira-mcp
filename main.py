@@ -327,6 +327,17 @@ def add_comment(
 
 
 @mcp.tool()
+def delete_comment(issue_key: str, comment_id: str) -> dict[str, Any]:
+    """Permanently delete a Jira comment by its ID."""
+    _request(
+        "DELETE",
+        _issue_path(issue_key, f"/comment/{quote(comment_id, safe='')}"),
+        expected=(204,),
+    )
+    return {"deleted": True, "comment_id": comment_id}
+
+
+@mcp.tool()
 def add_attachment(issue_key: str, file_path: str) -> dict[str, Any]:
     """Upload a local file as an attachment to a Jira issue."""
     path = Path(file_path)

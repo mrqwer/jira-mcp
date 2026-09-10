@@ -92,6 +92,16 @@ class JiraToolsTest(unittest.TestCase):
         self.assertEqual(result, {"deleted_attachment_id": "15152"})
 
     @patch("main._request")
+    def test_delete_comment_calls_expected_endpoint(self, request):
+        request.return_value = {}
+
+        result = main.delete_comment("PROJ-1", "10050")
+
+        self.assertEqual(request.call_args.args, ("DELETE", "issue/PROJ-1/comment/10050"))
+        self.assertEqual(request.call_args.kwargs["expected"], (204,))
+        self.assertEqual(result, {"deleted": True, "comment_id": "10050"})
+
+    @patch("main._request")
     def test_delete_link_calls_expected_endpoint(self, request):
         request.return_value = {}
 
