@@ -6,13 +6,55 @@ from unittest.mock import patch
 import main
 
 
+class JiraSettingsTest(unittest.TestCase):
+    def test_env_file_prefers_cli_argument(self):
+        with patch.dict("os.environ", {"JIRA_ENV_FILE": "from-env.env"}):
+            path = main._env_file_path(["--env-file", "from-arg.env"])
+
+        self.assertEqual(path, Path("from-arg.env").resolve())
+
+    def test_env_file_falls_back_to_variable_then_default(self):
+        with patch.dict("os.environ", {"JIRA_ENV_FILE": "from-env.env"}):
+            self.assertEqual(main._env_file_path([]), Path("from-env.env").resolve())
+
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(main._env_file_path([]), main.DEFAULT_ENV_FILE)
+
+    def test_env_bool_and_int_parse_values(self):
+        with patch.dict(
+            "os.environ", {"JIRA_VERIFY_SSL": "false", "JIRA_TIMEOUT": "5"}
+        ):
+            self.assertFalse(main._env_bool("JIRA_VERIFY_SSL", True))
+            self.assertEqual(main._env_int("JIRA_TIMEOUT", 20), 5)
+
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertTrue(main._env_bool("JIRA_VERIFY_SSL", True))
+            self.assertEqual(main._env_int("JIRA_TIMEOUT", 20), 20)
+
+
 class JiraToolsTest(unittest.TestCase):
-    def test_client_uses_hardcoded_basic_auth(self):
+    def tearDown(self):
+        main._client.cache_clear()
+
+    @patch.multiple(
+        main,
+        JIRA_URL="http://jira.example.com",
+        JIRA_USER="user",
+        JIRA_PASSWORD="secret",
+    )
+    def test_client_uses_basic_auth(self):
         main._client.cache_clear()
         client = main._client()
 
-        self.assertEqual(client.auth, (main.JIRA_USER, main.JIRA_PASSWORD))
+        self.assertEqual(client.auth, ("user", "secret"))
         self.assertNotIn("Authorization", client.headers)
+
+    @patch.multiple(main, JIRA_URL="http://jira.example.com", JIRA_USER="", JIRA_PASSWORD="")
+    def test_client_reports_missing_settings(self):
+        main._client.cache_clear()
+
+        with self.assertRaisesRegex(RuntimeError, "JIRA_USER, JIRA_PASSWORD"):
+            main._client()
 
     @patch("main._request")
     def test_create_ticket_keeps_core_fields_authoritative(self, request):

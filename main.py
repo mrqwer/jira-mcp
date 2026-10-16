@@ -1,28 +1,53 @@
 from __future__ import annotations
 
+import argparse
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 import requests
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
-try:
-    from config import (
-        JIRA_MAX_RESULTS,
-        JIRA_PASSWORD,
-        JIRA_TIMEOUT,
-        JIRA_URL,
-        JIRA_USER,
-        JIRA_VERIFY_SSL,
-    )
-except ModuleNotFoundError as exc:
-    if exc.name == "config":
-        raise RuntimeError(
-            "Create config.py from config.example.py and add your Jira credentials"
-        ) from exc
-    raise
+REQUIRED_SETTINGS = ("JIRA_URL", "JIRA_USER", "JIRA_PASSWORD")
+DEFAULT_ENV_FILE = Path(__file__).resolve().parent / ".env"
+
+
+def _env_file_path(argv: list[str] | None = None) -> Path:
+    """Pick the .env file: --env-file, then JIRA_ENV_FILE, then .env next to main.py."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--env-file")
+    args, _ = parser.parse_known_args(argv)
+    value = args.env_file or os.environ.get("JIRA_ENV_FILE")
+    return Path(value).expanduser().resolve() if value else DEFAULT_ENV_FILE
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.environ.get(name)
+    return int(value) if value and value.strip() else default
+
+
+ENV_FILE = _env_file_path()
+if ENV_FILE != DEFAULT_ENV_FILE and not ENV_FILE.is_file():
+    raise RuntimeError(f"Jira env file not found: {ENV_FILE}")
+# Variables already set in the environment (e.g. MCP client "env") win over the file.
+load_dotenv(ENV_FILE, override=False)
+
+JIRA_URL = os.environ.get("JIRA_URL", "").rstrip("/")
+JIRA_USER = os.environ.get("JIRA_USER", "")
+JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "")
+JIRA_VERIFY_SSL = _env_bool("JIRA_VERIFY_SSL", True)
+JIRA_TIMEOUT = _env_int("JIRA_TIMEOUT", 20)
+JIRA_MAX_RESULTS = _env_int("JIRA_MAX_RESULTS", 50)
 
 mcp = FastMCP("Corporate Jira")
 
@@ -55,6 +80,14 @@ def _jira_url() -> str:
 
 @lru_cache(maxsize=1)
 def _client() -> requests.Session:
+    settings = {"JIRA_URL": JIRA_URL, "JIRA_USER": JIRA_USER, "JIRA_PASSWORD": JIRA_PASSWORD}
+    missing = [name for name in REQUIRED_SETTINGS if not settings[name]]
+    if missing:
+        raise RuntimeError(
+            f"Missing Jira settings: {', '.join(missing)}. Set them in {ENV_FILE} "
+            "(see .env.example) or in the MCP server env"
+        )
+
     session = requests.Session()
     session.headers["Accept"] = "application/json"
 

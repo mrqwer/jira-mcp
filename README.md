@@ -13,19 +13,42 @@ cd jira-mcp
 
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-cp config.example.py config.py
-chmod 600 config.py
+cp .env.example .env
+chmod 600 .env
 ```
 
-Заполните `config.py`:
+Заполните `.env`:
 
-```python
-JIRA_URL = "http://jira.company.local:8080"
-JIRA_USER = "firstname.lastname"
-JIRA_PASSWORD = "your-password"
+```dotenv
+JIRA_URL=http://jira.company.local:8080
+JIRA_USER=firstname.lastname
+JIRA_PASSWORD=your-password
 ```
 
-`config.py` находится в `.gitignore`. Не коммитьте его.
+Необязательные параметры: `JIRA_VERIFY_SSL` (по умолчанию `true`),
+`JIRA_TIMEOUT` (секунды, `20`), `JIRA_MAX_RESULTS` (`50`).
+
+Файлы `.env` и `.env.*` (кроме `.env.example`) находятся в `.gitignore`. Не
+коммитьте их.
+
+## Настройки для каждого проекта
+
+Сервер ищет настройки в таком порядке:
+
+1. Переменные окружения процесса. Например, блок `env` в конфигурации
+   MCP-клиента. Они всегда имеют приоритет над файлом.
+2. Файл из аргумента `--env-file /path/to/file`.
+3. Файл из переменной `JIRA_ENV_FILE`.
+4. `.env` рядом с `main.py`, если ничего из перечисленного не задано.
+
+Если файл указан явно, но не найден, сервер не запустится. Указывайте
+абсолютные пути: каталог, из которого клиент запускает сервер, зависит от
+клиента.
+
+Поэтому одну установку `jira-mcp` можно подключить к разным проектам с
+разными Jira или учётными записями. Положите в каждый проект свой файл,
+например `<проект>/.env.jira` (добавьте его в `.gitignore` проекта), и
+передайте его через `--env-file` при подключении MCP. Примеры ниже.
 
 Проверка:
 
@@ -38,7 +61,41 @@ JIRA_PASSWORD = "your-password"
 
 ## Claude Code
 
-Запустите из каталога `jira-mcp`:
+### Для одного проекта (рекомендуется)
+
+Запустите из каталога **проекта**, в котором нужна Jira. `--scope local`
+сохраняет сервер только для этого проекта и только у вас, а не глобально:
+
+```bash
+MCP_DIR="/ABSOLUTE/PATH/jira-mcp"
+
+claude mcp add \
+  --transport stdio \
+  --scope local \
+  jira -- \
+  "$MCP_DIR/.venv/bin/python" \
+  "$MCP_DIR/main.py" \
+  --env-file "$(pwd)/.env.jira"
+```
+
+Вместо файла можно передать переменные напрямую:
+
+```bash
+claude mcp add --transport stdio --scope local \
+  -e JIRA_URL=http://jira.company.local:8080 \
+  -e JIRA_USER=firstname.lastname \
+  -e JIRA_PASSWORD=your-password \
+  jira -- "$MCP_DIR/.venv/bin/python" "$MCP_DIR/main.py"
+```
+
+Для общего `.mcp.json` в репозитории проекта (`--scope project`) не
+записывайте пароль в сам файл. Оставьте там только `--env-file`, а секреты
+держите в неотслеживаемом `.env.jira`.
+
+### Для всех проектов
+
+Чтобы подключить сервер глобально с `.env` рядом с `main.py`, запустите из
+каталога `jira-mcp`:
 
 ```bash
 MCP_DIR="$(pwd)"
@@ -50,6 +107,9 @@ claude mcp add \
   "$MCP_DIR/.venv/bin/python" \
   "$MCP_DIR/main.py"
 ```
+
+Настройка `local` или `project` для конкретного проекта перекрывает
+глобальную, если у них одинаковое имя.
 
 Проверка:
 
@@ -70,12 +130,19 @@ claude mcp list
     "jira": {
       "command": "/ABSOLUTE/PATH/jira-mcp/.venv/bin/python",
       "args": [
-        "/ABSOLUTE/PATH/jira-mcp/main.py"
+        "/ABSOLUTE/PATH/jira-mcp/main.py",
+        "--env-file",
+        "/ABSOLUTE/PATH/project/.env.jira"
       ]
     }
   }
 }
 ```
+
+Пара `--env-file` необязательна: без неё используется `.env` рядом с
+`main.py`. В Claude Desktop нет проектов. Чтобы работать с несколькими Jira,
+добавьте несколько серверов с разными именами (`jira-alpha`, `jira-beta`) и
+разными `--env-file`. Вместо файла можно указать блок `"env": {"JIRA_URL": ...}`.
 
 Если в файле уже есть другие серверы, добавьте только секцию `jira`, не
 перезаписывая остальную конфигурацию. После изменения полностью перезапустите
@@ -92,6 +159,19 @@ codex mcp add jira -- \
   "$MCP_DIR/.venv/bin/python" \
   "$MCP_DIR/main.py"
 ```
+
+Конфигурация Codex общая для всех проектов (`~/.codex/config.toml`). Чтобы
+у разных проектов были разные настройки, добавьте отдельный сервер на каждый
+проект со своим файлом:
+
+```bash
+codex mcp add jira-alpha -- \
+  "$MCP_DIR/.venv/bin/python" \
+  "$MCP_DIR/main.py" \
+  --env-file /ABSOLUTE/PATH/alpha/.env.jira
+```
+
+Можно также передать переменные через `--env JIRA_URL=...`.
 
 Проверка:
 
@@ -120,7 +200,10 @@ Codex Desktop, Codex CLI и IDE-расширение используют общ
 ```toml
 [mcp_servers.jira]
 command = "/ABSOLUTE/PATH/jira-mcp/.venv/bin/python"
-args = ["/ABSOLUTE/PATH/jira-mcp/main.py"]
+args = ["/ABSOLUTE/PATH/jira-mcp/main.py", "--env-file", "/ABSOLUTE/PATH/project/.env.jira"]
+
+# или переменные напрямую:
+# env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.lastname", JIRA_PASSWORD = "your-password" }
 ```
 
 ## Проверка Jira
@@ -134,7 +217,7 @@ args = ["/ABSOLUTE/PATH/jira-mcp/main.py"]
 Если MCP подключен, но Jira не отвечает, проверьте:
 
 - доступ к внутренней сети или VPN;
-- `JIRA_URL`, логин и пароль в `config.py`;
+- `JIRA_URL`, логин и пароль в `.env` (или в файле из `--env-file`);
 - права пользователя в нужном проекте;
 - статус сервера через `/mcp`.
 
