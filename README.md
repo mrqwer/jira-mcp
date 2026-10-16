@@ -6,7 +6,27 @@
 
 Сервер работает через Jira REST API v2 и Basic Auth. Токен не нужен.
 
+## Различия ОС
+
+Команды ниже даны в двух вариантах: **Linux/macOS** (bash/zsh) и **Windows**
+(PowerShell). Главное отличие — расположение файлов в виртуальном окружении:
+
+|                        | Linux/macOS                 | Windows                          |
+|------------------------|-----------------------------|----------------------------------|
+| Создать окружение      | `python3 -m venv .venv`     | `python -m venv .venv` или `py -m venv .venv` |
+| Python окружения       | `.venv/bin/python`          | `.venv\Scripts\python.exe`       |
+| pip окружения          | `.venv/bin/pip`             | `.venv\Scripts\pip.exe`          |
+| Перенос строки команды | `\`                         | `` ` `` (обратная кавычка)       |
+| Пример абсолютного пути | `/home/me/jira-mcp`        | `C:\Users\me\jira-mcp`           |
+
+В JSON-файлах (Claude Desktop, `.mcp.json`) пути Windows пишите с прямыми
+слэшами (`C:/Users/me/jira-mcp/main.py`) или удваивайте обратные
+(`C:\\Users\\me\\jira-mcp\\main.py`). В TOML (Codex) используйте строки в
+одинарных кавычках: `'C:\Users\me\jira-mcp\main.py'`.
+
 ## Установка
+
+Linux/macOS:
 
 ```bash
 git clone <URL_РЕПОЗИТОРИЯ> jira-mcp
@@ -14,16 +34,22 @@ cd jira-mcp
 
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-```
-
-Проверка:
-
-```bash
 .venv/bin/python -m unittest -v
 ```
 
-Команды ниже приведены для Linux/macOS. На Windows используйте
-`.venv\Scripts\python.exe` и абсолютные пути.
+Windows:
+
+```powershell
+git clone <URL_РЕПОЗИТОРИЯ> jira-mcp
+cd jira-mcp
+
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python.exe -m unittest -v
+```
+
+Активировать окружение (`activate`) не нужно: MCP-клиент запускает
+`python` из `.venv` по полному пути.
 
 ## Настройки
 
@@ -40,14 +66,23 @@ python3 -m venv .venv
 
 Обычно их передает MCP-клиент при подключении сервера: `-e` в
 `claude mcp add`, блок `env` в JSON/TOML-конфигурации. Так у каждого проекта
-или подключения могут быть свои Jira и учётная запись. Примеры ниже.
+или подключения могут быть свои Jira и учётная запись. Каждое подключение
+запускает отдельный процесс сервера со своими значениями. Примеры ниже.
 
 Для запуска без клиента или как общие значения по умолчанию можно создать
-`.env` рядом с `main.py`:
+`.env` рядом с `main.py`.
+
+Linux/macOS:
 
 ```bash
 cp .env.example .env
 chmod 600 .env
+```
+
+Windows:
+
+```powershell
+Copy-Item .env.example .env
 ```
 
 Переменные, переданные клиентом, имеют приоритет над `.env`. Файлы `.env` и
@@ -58,7 +93,9 @@ chmod 600 .env
 ### Для одного проекта (рекомендуется)
 
 Запустите из каталога **проекта**, в котором нужна Jira. `--scope local`
-сохраняет сервер только для этого проекта и только у вас:
+сохраняет сервер только для этого проекта и только у вас.
+
+Linux/macOS:
 
 ```bash
 MCP_DIR="/ABSOLUTE/PATH/jira-mcp"
@@ -74,17 +111,33 @@ claude mcp add \
   "$MCP_DIR/main.py"
 ```
 
+Windows:
+
+```powershell
+$MCP_DIR = "C:\ABSOLUTE\PATH\jira-mcp"
+
+claude mcp add `
+  --transport stdio `
+  --scope local `
+  -e JIRA_URL=http://jira.company.local:8080 `
+  -e JIRA_USER=firstname.lastname `
+  -e JIRA_PASSWORD=your-password `
+  jira -- `
+  "$MCP_DIR\.venv\Scripts\python.exe" `
+  "$MCP_DIR\main.py"
+```
+
 ### Общий `.mcp.json` в репозитории проекта
 
 Чтобы подключение было у всей команды (`--scope project`), не записывайте в
-`.mcp.json` пароль. Claude Code подставит значения `${VAR}` из окружения
-каждого пользователя:
+`.mcp.json` пароль и пути, зависящие от ОС. Claude Code подставит значения
+`${VAR}` из окружения каждого пользователя:
 
 ```json
 {
   "mcpServers": {
     "jira": {
-      "command": "${JIRA_MCP_DIR}/.venv/bin/python",
+      "command": "${JIRA_MCP_PYTHON}",
       "args": ["${JIRA_MCP_DIR}/main.py"],
       "env": {
         "JIRA_URL": "http://jira.company.local:8080",
@@ -96,25 +149,54 @@ claude mcp add \
 }
 ```
 
+Каждый участник один раз задает переменные у себя.
+
+Linux/macOS (добавьте в `~/.bashrc` или `~/.zshrc`):
+
+```bash
+export JIRA_MCP_DIR="/ABSOLUTE/PATH/jira-mcp"
+export JIRA_MCP_PYTHON="$JIRA_MCP_DIR/.venv/bin/python"
+export JIRA_USER="firstname.lastname"
+export JIRA_PASSWORD="your-password"
+```
+
+Windows (сохраняется для пользователя, действует в новых терминалах):
+
+```powershell
+setx JIRA_MCP_DIR "C:/ABSOLUTE/PATH/jira-mcp"
+setx JIRA_MCP_PYTHON "C:/ABSOLUTE/PATH/jira-mcp/.venv/Scripts/python.exe"
+setx JIRA_USER "firstname.lastname"
+setx JIRA_PASSWORD "your-password"
+```
+
+После `setx` перезапустите терминал и Claude Code.
+
 ### Для всех проектов
 
 Если настройки везде одинаковые, заполните `.env` рядом с `main.py` и
-подключите сервер глобально:
+подключите сервер глобально.
+
+Linux/macOS:
 
 ```bash
 MCP_DIR="/ABSOLUTE/PATH/jira-mcp"
 
-claude mcp add \
-  --transport stdio \
-  --scope user \
-  jira -- \
-  "$MCP_DIR/.venv/bin/python" \
-  "$MCP_DIR/main.py"
+claude mcp add --transport stdio --scope user \
+  jira -- "$MCP_DIR/.venv/bin/python" "$MCP_DIR/main.py"
+```
+
+Windows:
+
+```powershell
+$MCP_DIR = "C:\ABSOLUTE\PATH\jira-mcp"
+
+claude mcp add --transport stdio --scope user `
+  jira -- "$MCP_DIR\.venv\Scripts\python.exe" "$MCP_DIR\main.py"
 ```
 
 Сервер с тем же именем в `local` или `project` перекрывает глобальный.
 
-Проверка:
+Проверка (одинаково на всех ОС):
 
 ```bash
 claude mcp get jira
@@ -125,7 +207,14 @@ claude mcp list
 
 ## Claude Desktop
 
-Откройте **Settings → Developer → Edit Config** и добавьте сервер:
+Откройте **Settings → Developer → Edit Config**. Откроется файл:
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Добавьте сервер.
+
+macOS:
 
 ```json
 {
@@ -143,15 +232,35 @@ claude mcp list
 }
 ```
 
+Windows:
+
+```json
+{
+  "mcpServers": {
+    "jira": {
+      "command": "C:/ABSOLUTE/PATH/jira-mcp/.venv/Scripts/python.exe",
+      "args": ["C:/ABSOLUTE/PATH/jira-mcp/main.py"],
+      "env": {
+        "JIRA_URL": "http://jira.company.local:8080",
+        "JIRA_USER": "firstname.lastname",
+        "JIRA_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
 Блок `env` можно не указывать, если заполнен `.env` рядом с `main.py`. Для
 нескольких Jira добавьте несколько серверов с разными именами (`jira-alpha`,
 `jira-beta`) и своим `env`.
 
 Если в файле уже есть другие серверы, добавьте только нужную секцию, не
-перезаписывая остальную конфигурацию. После изменения полностью перезапустите
-Claude Desktop.
+перезаписывая остальную конфигурацию. После изменения полностью закройте
+Claude Desktop (на Windows — также из трея) и откройте снова.
 
 ## Codex CLI
+
+Linux/macOS:
 
 ```bash
 MCP_DIR="/ABSOLUTE/PATH/jira-mcp"
@@ -165,11 +274,25 @@ codex mcp add jira \
   "$MCP_DIR/main.py"
 ```
 
-Конфигурация Codex общая для всех проектов (`~/.codex/config.toml`). Для
-разных Jira добавьте серверы с разными именами (`jira-alpha`, `jira-beta`) и
-своими `--env`.
+Windows:
 
-Проверка:
+```powershell
+$MCP_DIR = "C:\ABSOLUTE\PATH\jira-mcp"
+
+codex mcp add jira `
+  --env JIRA_URL=http://jira.company.local:8080 `
+  --env JIRA_USER=firstname.lastname `
+  --env JIRA_PASSWORD=your-password `
+  -- `
+  "$MCP_DIR\.venv\Scripts\python.exe" `
+  "$MCP_DIR\main.py"
+```
+
+Конфигурация Codex общая для всех проектов: `~/.codex/config.toml`
+(на Windows — `%USERPROFILE%\.codex\config.toml`). Для разных Jira добавьте
+серверы с разными именами (`jira-alpha`, `jira-beta`) и своими `--env`.
+
+Проверка (одинаково на всех ОС):
 
 ```bash
 codex mcp get jira
@@ -180,24 +303,33 @@ codex mcp list
 
 ## Codex Desktop
 
-Codex Desktop, Codex CLI и IDE-расширение используют общий
-`~/.codex/config.toml`. Если сервер уже добавлен через `codex mcp add`, повторная
+Codex Desktop, Codex CLI и IDE-расширение используют общий `config.toml`
+(путь см. выше). Если сервер уже добавлен через `codex mcp add`, повторная
 настройка не нужна: перезапустите приложение.
 
 Также сервер можно добавить через **Settings → MCP servers → Add server**:
 
 - Name: `jira`
 - Type: `STDIO`
-- Command: абсолютный путь к `.venv/bin/python`
+- Command: абсолютный путь к Python окружения (см. «Различия ОС»)
 - Args: абсолютный путь к `main.py`
 - переменные окружения `JIRA_URL`, `JIRA_USER`, `JIRA_PASSWORD`
 
-Ручная конфигурация выглядит так:
+Ручная конфигурация, Linux/macOS:
 
 ```toml
 [mcp_servers.jira]
 command = "/ABSOLUTE/PATH/jira-mcp/.venv/bin/python"
 args = ["/ABSOLUTE/PATH/jira-mcp/main.py"]
+env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.lastname", JIRA_PASSWORD = "your-password" }
+```
+
+Windows:
+
+```toml
+[mcp_servers.jira]
+command = 'C:\ABSOLUTE\PATH\jira-mcp\.venv\Scripts\python.exe'
+args = ['C:\ABSOLUTE\PATH\jira-mcp\main.py']
 env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.lastname", JIRA_PASSWORD = "your-password" }
 ```
 
@@ -214,7 +346,9 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 - доступ к внутренней сети или VPN;
 - `JIRA_URL`, логин и пароль в `env` подключения MCP или в `.env`;
 - права пользователя в нужном проекте;
-- статус сервера через `/mcp`.
+- статус сервера через `/mcp`;
+- что путь к Python указывает на окружение проекта: `.venv/bin/python` на
+  Linux/macOS, `.venv\Scripts\python.exe` на Windows.
 
 ## Инструменты
 
@@ -246,7 +380,19 @@ src/jira_mcp/
 tests/                          # тесты по разделам
 ```
 
-Сервер также запускается как модуль: `PYTHONPATH=src python -m jira_mcp`.
+Сервер также запускается как модуль.
+
+Linux/macOS:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m jira_mcp
+```
+
+Windows:
+
+```powershell
+$env:PYTHONPATH = "src"; .venv\Scripts\python.exe -m jira_mcp
+```
 
 Чтобы добавить инструмент:
 
@@ -259,10 +405,20 @@ tests/                          # тесты по разделам
 
 ## Обновление
 
+Linux/macOS:
+
 ```bash
 git pull
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m unittest -v
+```
+
+Windows:
+
+```powershell
+git pull
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python.exe -m unittest -v
 ```
 
 Повторно добавлять MCP не нужно, пока путь к каталогу не изменился.
