@@ -217,36 +217,44 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 
 ## Инструменты
 
-Чтение:
-
-- `get_myself`
-- `list_projects`
-- `get_ticket`
-- `search_tickets`
-- `get_project_issue_types`
-- `get_create_fields`
-- `find_users`
-- `download_attachment`
-- `list_transitions`
-- `get_link_types`
-- `get_remote_links`
-
-Изменения:
-
-- `create_ticket`
-- `update_ticket`
-- `assign_ticket`
-- `add_comment`
-- `delete_comment`
-- `add_attachment`
-- `delete_attachment`
-- `change_status`
-- `add_worklog`
-- `link_tickets`
-- `delete_link`
+| Раздел        | Чтение                                                            | Изменения                                          |
+|---------------|-------------------------------------------------------------------|----------------------------------------------------|
+| `users`       | `get_myself`, `find_users`                                        |                                                    |
+| `projects`    | `list_projects`, `get_project_issue_types`, `get_create_fields`   |                                                    |
+| `statuses`    | `get_project_statuses`, `get_all_statuses`                        |                                                    |
+| `issues`      | `get_ticket`, `search_tickets`                                    | `create_ticket`, `update_ticket`, `assign_ticket`  |
+| `comments`    |                                                                   | `add_comment`, `delete_comment`                    |
+| `attachments` | `download_attachment`                                             | `add_attachment`, `delete_attachment`              |
+| `transitions` | `list_transitions`                                                | `change_status`                                    |
+| `worklogs`    |                                                                   | `add_worklog`                                      |
+| `links`       | `get_link_types`, `get_remote_links`                              | `link_tickets`, `delete_link`                      |
 
 Перед созданием задачи или сменой статуса агент должен сначала проверить
 доступные типы, поля и переходы.
+
+## Структура
+
+```text
+main.py                         # точка входа для MCP-клиентов
+src/jira_mcp/
+  app.py                        # экземпляр FastMCP
+  config.py                     # настройки из env / .env
+  client.py                     # HTTP-сессия Jira и общие хелперы
+  server.py                     # регистрация инструментов и запуск
+  tools/<раздел>/<команда>.py   # по одному файлу на инструмент
+tests/                          # тесты по разделам
+```
+
+Сервер также запускается как модуль: `PYTHONPATH=src python -m jira_mcp`.
+
+Чтобы добавить инструмент:
+
+1. Создайте `src/jira_mcp/tools/<раздел>/<команда>.py` с функцией под
+   `@mcp.tool()`. Запросы к Jira делайте через `client.request(...)`.
+2. Импортируйте модуль в `src/jira_mcp/tools/<раздел>/__init__.py`. Для нового
+   раздела добавьте его в `src/jira_mcp/tools/__init__.py`.
+3. Добавьте имя в `EXPECTED_TOOLS` в `tests/test_server.py`, а тест — в
+   `tests/test_<раздел>.py`. В тестах подменяйте `jira_mcp.client.request`.
 
 ## Обновление
 

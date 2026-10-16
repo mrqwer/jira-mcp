@@ -1,0 +1,9 @@
+"""Issues: read, search, create, update and assign tickets."""
+
+from jira_mcp.tools.issues import (  # noqa: F401
+    assign_ticket,
+    create_ticket,
+    get_ticket,
+    search_tickets,
+    update_ticket,
+)

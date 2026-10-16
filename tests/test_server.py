@@ -1,0 +1,42 @@
+import asyncio
+import unittest
+
+from jira_mcp.server import mcp
+
+EXPECTED_TOOLS = {
+    "get_myself",
+    "find_users",
+    "list_projects",
+    "get_project_issue_types",
+    "get_create_fields",
+    "get_project_statuses",
+    "get_all_statuses",
+    "get_ticket",
+    "search_tickets",
+    "create_ticket",
+    "update_ticket",
+    "assign_ticket",
+    "add_comment",
+    "delete_comment",
+    "add_attachment",
+    "delete_attachment",
+    "download_attachment",
+    "list_transitions",
+    "change_status",
+    "add_worklog",
+    "get_link_types",
+    "link_tickets",
+    "delete_link",
+    "get_remote_links",
+}
+
+
+class ServerTest(unittest.TestCase):
+    def test_every_tool_is_registered(self):
+        tools = asyncio.run(mcp.list_tools())
+
+        self.assertEqual({tool.name for tool in tools}, EXPECTED_TOOLS)
+
+
+if __name__ == "__main__":
+    unittest.main()
