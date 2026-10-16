@@ -7,19 +7,6 @@ import main
 
 
 class JiraSettingsTest(unittest.TestCase):
-    def test_env_file_prefers_cli_argument(self):
-        with patch.dict("os.environ", {"JIRA_ENV_FILE": "from-env.env"}):
-            path = main._env_file_path(["--env-file", "from-arg.env"])
-
-        self.assertEqual(path, Path("from-arg.env").resolve())
-
-    def test_env_file_falls_back_to_variable_then_default(self):
-        with patch.dict("os.environ", {"JIRA_ENV_FILE": "from-env.env"}):
-            self.assertEqual(main._env_file_path([]), Path("from-env.env").resolve())
-
-        with patch.dict("os.environ", {}, clear=True):
-            self.assertEqual(main._env_file_path([]), main.DEFAULT_ENV_FILE)
-
     def test_env_bool_and_int_parse_values(self):
         with patch.dict(
             "os.environ", {"JIRA_VERIFY_SSL": "false", "JIRA_TIMEOUT": "5"}

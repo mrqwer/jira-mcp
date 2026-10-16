@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -12,16 +11,7 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 REQUIRED_SETTINGS = ("JIRA_URL", "JIRA_USER", "JIRA_PASSWORD")
-DEFAULT_ENV_FILE = Path(__file__).resolve().parent / ".env"
-
-
-def _env_file_path(argv: list[str] | None = None) -> Path:
-    """Pick the .env file: --env-file, then JIRA_ENV_FILE, then .env next to main.py."""
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--env-file")
-    args, _ = parser.parse_known_args(argv)
-    value = args.env_file or os.environ.get("JIRA_ENV_FILE")
-    return Path(value).expanduser().resolve() if value else DEFAULT_ENV_FILE
+ENV_FILE = Path(__file__).resolve().parent / ".env"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -36,10 +26,7 @@ def _env_int(name: str, default: int) -> int:
     return int(value) if value and value.strip() else default
 
 
-ENV_FILE = _env_file_path()
-if ENV_FILE != DEFAULT_ENV_FILE and not ENV_FILE.is_file():
-    raise RuntimeError(f"Jira env file not found: {ENV_FILE}")
-# Variables already set in the environment (e.g. MCP client "env") win over the file.
+# Variables passed by the MCP client ("env" in its config) win over the local .env.
 load_dotenv(ENV_FILE, override=False)
 
 JIRA_URL = os.environ.get("JIRA_URL", "").rstrip("/")
@@ -84,8 +71,8 @@ def _client() -> requests.Session:
     missing = [name for name in REQUIRED_SETTINGS if not settings[name]]
     if missing:
         raise RuntimeError(
-            f"Missing Jira settings: {', '.join(missing)}. Set them in {ENV_FILE} "
-            "(see .env.example) or in the MCP server env"
+            f"Missing Jira settings: {', '.join(missing)}. Pass them in the MCP "
+            f"server env or set them in {ENV_FILE} (see .env.example)"
         )
 
     session = requests.Session()
