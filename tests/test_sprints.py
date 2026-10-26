@@ -94,6 +94,21 @@ class SprintsWriteTest(unittest.TestCase):
         self.assertEqual(request.call_args.kwargs["api"], "agile")
         self.assertEqual(result["id"], 11)
 
+    def test_create_sprint_with_dates(self, request):
+        request.return_value = SPRINT
+
+        create_sprint(27, "Sprint 1", start_date="2026-11-02", end_date="2026-11-16")
+
+        self.assertEqual(
+            request.call_args.kwargs["json"],
+            {
+                "name": "Sprint 1",
+                "originBoardId": 27,
+                "startDate": "2026-11-02",
+                "endDate": "2026-11-16",
+            },
+        )
+
     def test_start_sprint(self, request):
         request.return_value = dict(SPRINT, state="active")
 

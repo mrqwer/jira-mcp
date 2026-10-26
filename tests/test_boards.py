@@ -43,6 +43,15 @@ class BoardsTest(unittest.TestCase):
         self.assertEqual(request.call_args.kwargs["params"]["type"], "kanban")
         self.assertEqual(result["items"], [{"id": 25, "name": "Main", "type": "kanban"}])
 
+    @patch("jira_mcp.client.request", return_value={"values": []})
+    def test_list_boards_by_name_only(self, request):
+        list_boards(name="Open")
+
+        params = request.call_args.kwargs["params"]
+        self.assertEqual(params["name"], "Open")
+        self.assertNotIn("projectKeyOrId", params)
+        self.assertNotIn("type", params)
+
     @patch("jira_mcp.client.request")
     def test_board_config_resolves_status_names(self, request):
         request.side_effect = [

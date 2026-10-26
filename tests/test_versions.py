@@ -38,6 +38,29 @@ class VersionsTest(unittest.TestCase):
         )
         self.assertEqual(result["id"], "4")
 
+    @patch("jira_mcp.client.request", return_value={"id": "5", "name": "3.0"})
+    def test_create_version_all_fields(self, request):
+        create_version(
+            "PROJ", "3.0", description="Big", start_date="2026-11-01", release_date="2026-12-01"
+        )
+
+        self.assertEqual(
+            request.call_args.kwargs["json"],
+            {
+                "project": "PROJ",
+                "name": "3.0",
+                "description": "Big",
+                "startDate": "2026-11-01",
+                "releaseDate": "2026-12-01",
+            },
+        )
+
+    @patch("jira_mcp.client.request", return_value={"id": "2", "released": True})
+    def test_release_version_with_explicit_date(self, request):
+        release_version("2", release_date="2026-10-01")
+
+        self.assertEqual(request.call_args.kwargs["json"]["releaseDate"], "2026-10-01")
+
     @patch("jira_mcp.client.request")
     def test_release_version_defaults_to_today(self, request):
         request.return_value = {"id": "2", "name": "1.1", "released": True}

@@ -2,7 +2,26 @@ import unittest
 from unittest.mock import patch
 
 from jira_mcp.tools.users.find_assignable_users import find_assignable_users
+from jira_mcp.tools.users.find_users import find_users
 from jira_mcp.tools.users.get_my_permissions import get_my_permissions
+from jira_mcp.tools.users.get_myself import get_myself
+
+
+class UsersTest(unittest.TestCase):
+    @patch("jira_mcp.client.request", return_value={"name": "ivan"})
+    def test_get_myself(self, request):
+        self.assertEqual(get_myself(), {"name": "ivan"})
+        self.assertEqual(request.call_args.args, ("GET", "myself"))
+
+    @patch("jira_mcp.client.request")
+    def test_find_users(self, request):
+        request.return_value = {"users": [{"name": "ivan"}], "total": 1}
+
+        result = find_users("iv", max_results=5)
+
+        self.assertEqual(request.call_args.args, ("GET", "user/picker"))
+        self.assertEqual(request.call_args.kwargs["params"], {"query": "iv", "maxResults": 5})
+        self.assertEqual(result, [{"name": "ivan"}])
 
 
 class AssignableUsersTest(unittest.TestCase):

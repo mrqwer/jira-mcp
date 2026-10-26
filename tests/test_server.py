@@ -1,7 +1,8 @@
 import asyncio
 import unittest
+from unittest.mock import patch
 
-from jira_mcp.server import mcp
+from jira_mcp.server import main, mcp
 
 EXPECTED_TOOLS = {
     "get_myself",
@@ -72,6 +73,12 @@ EXPECTED_TOOLS = {
 
 
 class ServerTest(unittest.TestCase):
+    def test_main_runs_stdio_transport(self):
+        with patch.object(mcp, "run") as run:
+            main()
+
+        run.assert_called_once_with(transport="stdio")
+
     def test_every_tool_is_registered(self):
         tools = asyncio.run(mcp.list_tools())
 

@@ -33,6 +33,15 @@ class ComponentsTest(unittest.TestCase):
             {"project": "PROJ", "name": "UI", "leadUserName": "petr"},
         )
 
+    @patch("jira_mcp.client.request", return_value={"id": "7", "name": "Docs"})
+    def test_create_component_with_description_only(self, request):
+        create_component("PROJ", "Docs", description="Documentation")
+
+        self.assertEqual(
+            request.call_args.kwargs["json"],
+            {"project": "PROJ", "name": "Docs", "description": "Documentation"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from jira_mcp.tools.comments.add_comment import add_comment
 from jira_mcp.tools.comments.delete_comment import delete_comment
 from jira_mcp.tools.comments.get_comments import get_comments
 
@@ -17,6 +18,22 @@ class CommentsTest(unittest.TestCase):
         )
         self.assertEqual(request.call_args.kwargs["expected"], (204,))
         self.assertEqual(result, {"deleted": True, "comment_id": "10050"})
+
+    @patch("jira_mcp.client.request", return_value={"id": "8"})
+    def test_add_comment_creates(self, request):
+        add_comment("PROJ-1", "Hello")
+
+        self.assertEqual(request.call_args.args, ("POST", "issue/PROJ-1/comment"))
+        self.assertEqual(request.call_args.kwargs["expected"], (201,))
+        self.assertEqual(request.call_args.kwargs["json"], {"body": "Hello"})
+
+    @patch("jira_mcp.client.request", return_value={"id": "8"})
+    def test_add_comment_edits_existing(self, request):
+        add_comment("PROJ-1", "Edited", comment_id="8")
+
+        self.assertEqual(request.call_args.args, ("PUT", "issue/PROJ-1/comment/8"))
+        self.assertEqual(request.call_args.kwargs["expected"], (200,))
+        self.assertEqual(request.call_args.kwargs["json"], {"body": "Edited"})
 
     @patch("jira_mcp.client.request")
     def test_get_comments_pages_and_normalizes(self, request):

@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from jira_mcp.tools.worklogs.add_worklog import add_worklog
 from jira_mcp.tools.worklogs.delete_worklog import delete_worklog
 from jira_mcp.tools.worklogs.get_worklogs import get_worklogs
 from jira_mcp.tools.worklogs.update_worklog import update_worklog
@@ -43,6 +44,20 @@ class WorklogsTest(unittest.TestCase):
             ],
         )
         self.assertIsNone(result["next_start_at"])
+
+    @patch("jira_mcp.client.request", return_value={"id": "101"})
+    def test_add_worklog(self, request):
+        add_worklog("PROJ-1", "1h 30m", comment="Review", started="2026-01-01T10:00:00.000+0500")
+
+        self.assertEqual(request.call_args.args, ("POST", "issue/PROJ-1/worklog"))
+        self.assertEqual(request.call_args.kwargs["expected"], (201,))
+        self.assertEqual(
+            request.call_args.kwargs["json"],
+            {"timeSpent": "1h 30m", "comment": "Review", "started": "2026-01-01T10:00:00.000+0500"},
+        )
+
+        add_worklog("PROJ-1", "15m")
+        self.assertEqual(request.call_args.kwargs["json"], {"timeSpent": "15m"})
 
     @patch("jira_mcp.client.request", return_value={"id": "100"})
     def test_update_worklog_sends_only_given_fields(self, request):
