@@ -373,7 +373,7 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 main.py                         # точка входа для MCP-клиентов
 src/jira_mcp/
   app.py                        # экземпляр FastMCP
-  config.py                     # настройки из env / .env
+  settings.py                   # настройки из env / .env
   client.py                     # HTTP-сессия Jira и общие хелперы
   server.py                     # регистрация инструментов и запуск
   tools/<раздел>/<команда>.py   # по одному файлу на инструмент

@@ -5,5 +5,5 @@ __pycache__/
 .env
 .env.*
 !.env.example
-# Legacy credentials file from before .env support
-config.py
+# Legacy root credentials file from before .env support (root only!)
+/config.py

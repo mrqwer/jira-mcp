@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from jira_mcp import config
+from jira_mcp import settings
 from jira_mcp.tools.attachments.add_attachment import add_attachment
 from jira_mcp.tools.attachments.delete_attachment import delete_attachment
 from jira_mcp.tools.attachments.download_attachment import download_attachment
@@ -56,7 +56,7 @@ class AttachmentsTest(unittest.TestCase):
         self.assertEqual(request.call_args.args, ("GET", "attachment/15152"))
         session.return_value.get.assert_called_once_with(
             "http://jira.example.com/secure/attachment/15152/screenshot.png",
-            timeout=config.JIRA_TIMEOUT,
+            timeout=settings.JIRA_TIMEOUT,
         )
         self.assertEqual(result["filename"], "screenshot.png")
         self.assertEqual(result["size"], 4)

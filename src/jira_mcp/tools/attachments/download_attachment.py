@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 import requests
 
-from jira_mcp import client, config
+from jira_mcp import client, settings
 from jira_mcp.app import mcp
 
 
@@ -22,7 +22,7 @@ def download_attachment(attachment_id: str, save_path: str | None = None) -> dic
         raise RuntimeError(f"Attachment {attachment_id} has no content URL")
 
     try:
-        response = client.session().get(content_url, timeout=config.JIRA_TIMEOUT)
+        response = client.session().get(content_url, timeout=settings.JIRA_TIMEOUT)
     except requests.RequestException as exc:
         raise RuntimeError(f"Jira attachment download failed: {exc}") from exc
 

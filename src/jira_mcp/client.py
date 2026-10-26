@@ -6,28 +6,28 @@ from urllib.parse import quote
 
 import requests
 
-from jira_mcp import config
+from jira_mcp import settings
 
 
 @lru_cache(maxsize=1)
 def session() -> requests.Session:
-    settings = {
-        "JIRA_URL": config.JIRA_URL,
-        "JIRA_USER": config.JIRA_USER,
-        "JIRA_PASSWORD": config.JIRA_PASSWORD,
+    values = {
+        "JIRA_URL": settings.JIRA_URL,
+        "JIRA_USER": settings.JIRA_USER,
+        "JIRA_PASSWORD": settings.JIRA_PASSWORD,
     }
-    missing = [name for name in config.REQUIRED_SETTINGS if not settings[name]]
+    missing = [name for name in settings.REQUIRED_SETTINGS if not values[name]]
     if missing:
         raise RuntimeError(
             f"Missing Jira settings: {', '.join(missing)}. Pass them in the MCP "
-            f"server env or set them in {config.ENV_FILE} (see .env.example)"
+            f"server env or set them in {settings.ENV_FILE} (see .env.example)"
         )
 
     http = requests.Session()
     http.headers["Accept"] = "application/json"
 
-    http.auth = (config.JIRA_USER, config.JIRA_PASSWORD)
-    http.verify = config.JIRA_VERIFY_SSL
+    http.auth = (settings.JIRA_USER, settings.JIRA_PASSWORD)
+    http.verify = settings.JIRA_VERIFY_SSL
     return http
 
 
@@ -38,11 +38,11 @@ def request(
     expected: tuple[int, ...] = (200,),
     **kwargs: Any,
 ) -> Any:
-    url = f"{config.JIRA_URL}/rest/api/2/{path.lstrip('/')}"
+    url = f"{settings.JIRA_URL}/rest/api/2/{path.lstrip('/')}"
 
     try:
         response = session().request(
-            method, url, timeout=config.JIRA_TIMEOUT, **kwargs
+            method, url, timeout=settings.JIRA_TIMEOUT, **kwargs
         )
     except requests.RequestException as exc:
         raise RuntimeError(f"Jira request failed: {exc}") from exc
@@ -68,8 +68,8 @@ def issue_path(issue_key: str, suffix: str = "") -> str:
 
 
 def browse_url(issue_key: str) -> str:
-    return f"{config.JIRA_URL}/browse/{issue_key}"
+    return f"{settings.JIRA_URL}/browse/{issue_key}"
 
 
 def bounded_results(value: int) -> int:
-    return max(1, min(value, config.JIRA_MAX_RESULTS))
+    return max(1, min(value, settings.JIRA_MAX_RESULTS))

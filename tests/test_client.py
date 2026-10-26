@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from jira_mcp import client, config
+from jira_mcp import client, settings
 
 
 class ClientTest(unittest.TestCase):
@@ -9,7 +9,7 @@ class ClientTest(unittest.TestCase):
         client.session.cache_clear()
 
     @patch.multiple(
-        config,
+        settings,
         JIRA_URL="http://jira.example.com",
         JIRA_USER="user",
         JIRA_PASSWORD="secret",
@@ -22,7 +22,7 @@ class ClientTest(unittest.TestCase):
         self.assertNotIn("Authorization", http.headers)
 
     @patch.multiple(
-        config, JIRA_URL="http://jira.example.com", JIRA_USER="", JIRA_PASSWORD=""
+        settings, JIRA_URL="http://jira.example.com", JIRA_USER="", JIRA_PASSWORD=""
     )
     def test_session_reports_missing_settings(self):
         client.session.cache_clear()
