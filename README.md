@@ -357,7 +357,8 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 | `users`       | `get_myself`, `find_users`                                        |                                                    |
 | `projects`    | `list_projects`, `get_project_issue_types`, `get_create_fields`   |                                                    |
 | `statuses`    | `get_project_statuses`, `get_all_statuses`                        |                                                    |
-| `issues`      | `get_ticket`, `search_tickets`                                    | `create_ticket`, `update_ticket`, `assign_ticket`  |
+| `fields`      | `get_fields`                                                      |                                                    |
+| `issues`      | `get_ticket`, `search_tickets`, `get_edit_fields`                 | `create_ticket`, `update_ticket`, `assign_ticket`  |
 | `comments`    |                                                                   | `add_comment`, `delete_comment`                    |
 | `attachments` | `download_attachment`                                             | `add_attachment`, `delete_attachment`              |
 | `transitions` | `list_transitions`                                                | `change_status`                                    |
@@ -365,7 +366,17 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 | `links`       | `get_link_types`, `get_remote_links`                              | `link_tickets`, `delete_link`                      |
 
 Перед созданием задачи или сменой статуса агент должен сначала проверить
-доступные типы, поля и переходы.
+доступные типы, поля и переходы:
+
+- `get_fields` сопоставляет `customfield_XXXXX` с человеческими именами и
+  JQL-именами;
+- `get_edit_fields` показывает, какие поля задачи можно менять и какими
+  операциями. `update_ticket` принимает `fields` (замена значения) и `update`
+  (операции `add`/`remove`/`set`, например добавить метку, не трогая
+  остальные);
+- `list_transitions` показывает поля экрана перехода. Обязательные поля,
+  чаще всего `resolution` при закрытии, передаются в `change_status` через
+  `fields`, а комментарий к переходу через `comment`.
 
 ## Структура
 

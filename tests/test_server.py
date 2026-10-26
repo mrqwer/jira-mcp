@@ -11,6 +11,8 @@ EXPECTED_TOOLS = {
     "get_create_fields",
     "get_project_statuses",
     "get_all_statuses",
+    "get_fields",
+    "get_edit_fields",
     "get_ticket",
     "search_tickets",
     "create_ticket",

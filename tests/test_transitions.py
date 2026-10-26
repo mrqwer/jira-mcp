@@ -3,23 +3,66 @@ from unittest.mock import patch
 
 from jira_mcp.tools.transitions.change_status import change_status
 
-
-class TransitionsTest(unittest.TestCase):
-    @patch("jira_mcp.client.request")
-    def test_change_status_uses_target_status_name(self, request):
-        request.side_effect = [
-            {
-                "transitions": [
-                    {"id": "31", "name": "Start progress", "to": {"name": "In Progress"}}
-                ]
+TRANSITIONS = {
+    "transitions": [
+        {"id": "31", "name": "Start progress", "to": {"name": "In Progress"}},
+        {
+            "id": "41",
+            "name": "Close",
+            "to": {"name": "Done"},
+            "fields": {
+                "resolution": {"required": True},
+                "fixVersions": {"required": False},
             },
-            {},
-        ]
+        },
+    ]
+}
+
+
+@patch("jira_mcp.client.request")
+class TransitionsTest(unittest.TestCase):
+    def test_change_status_uses_target_status_name(self, request):
+        request.side_effect = [TRANSITIONS, {}]
 
         result = change_status("PROJ-1", "in progress")
 
         self.assertEqual(result["transition_id"], "31")
         self.assertEqual(request.call_args.kwargs["json"], {"transition": {"id": "31"}})
+        self.assertFalse(result["commented"])
+
+    def test_change_status_sends_fields_and_comment(self, request):
+        request.side_effect = [TRANSITIONS, {}]
+
+        result = change_status(
+            "PROJ-1",
+            "Done",
+            fields={"resolution": {"name": "Fixed"}},
+            comment="Fixed in 1.2",
+        )
+
+        self.assertEqual(request.call_args.args, ("POST", "issue/PROJ-1/transitions"))
+        self.assertEqual(
+            request.call_args.kwargs["json"],
+            {
+                "transition": {"id": "41"},
+                "fields": {"resolution": {"name": "Fixed"}},
+                "update": {"comment": [{"add": {"body": "Fixed in 1.2"}}]},
+            },
+        )
+        self.assertEqual(result["status"], "Done")
+        self.assertEqual(result["updated_fields"], ["resolution"])
+        self.assertTrue(result["commented"])
+
+    def test_unavailable_transition_lists_required_fields(self, request):
+        request.side_effect = [TRANSITIONS]
+
+        with self.assertRaises(ValueError) as ctx:
+            change_status("PROJ-1", "Reopen")
+
+        message = str(ctx.exception)
+        self.assertIn("'to_status': 'Done'", message)
+        self.assertIn("'required_fields': ['resolution']", message)
+        self.assertEqual(request.call_count, 1)
 
 
 if __name__ == "__main__":
