@@ -7,6 +7,7 @@ from jira_mcp.tools import (  # noqa: F401
     issues,
     links,
     projects,
+    reference,
     statuses,
     transitions,
     users,

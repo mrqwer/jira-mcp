@@ -354,15 +354,16 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 
 | Раздел        | Чтение                                                            | Изменения                                          |
 |---------------|-------------------------------------------------------------------|----------------------------------------------------|
-| `users`       | `get_myself`, `find_users`                                        |                                                    |
+| `users`       | `get_myself`, `find_users`, `find_assignable_users`, `get_my_permissions` |                                            |
 | `projects`    | `list_projects`, `get_project_issue_types`, `get_create_fields`   |                                                    |
 | `statuses`    | `get_project_statuses`, `get_all_statuses`                        |                                                    |
+| `reference`   | `get_priorities`, `get_resolutions`, `get_issue_types`            |                                                    |
 | `fields`      | `get_fields`                                                      |                                                    |
-| `issues`      | `get_ticket`, `search_tickets`, `get_edit_fields`                 | `create_ticket`, `update_ticket`, `assign_ticket`  |
-| `comments`    |                                                                   | `add_comment`, `delete_comment`                    |
+| `issues`      | `get_ticket`, `search_tickets`, `get_edit_fields`, `get_issue_history` | `create_ticket`, `update_ticket`, `assign_ticket` |
+| `comments`    | `get_comments`                                                    | `add_comment`, `delete_comment`                    |
 | `attachments` | `download_attachment`                                             | `add_attachment`, `delete_attachment`              |
 | `transitions` | `list_transitions`                                                | `change_status`                                    |
-| `worklogs`    |                                                                   | `add_worklog`                                      |
+| `worklogs`    | `get_worklogs`                                                    | `add_worklog`                                      |
 | `links`       | `get_link_types`, `get_remote_links`                              | `link_tickets`, `delete_link`                      |
 
 Перед созданием задачи или сменой статуса агент должен сначала проверить
@@ -377,6 +378,14 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 - `list_transitions` показывает поля экрана перехода. Обязательные поля,
   чаще всего `resolution` при закрытии, передаются в `change_status` через
   `fields`, а комментарий к переходу через `comment`.
+
+Списки (`get_comments`, `get_worklogs`) возвращаются постранично:
+`{items, start_at, max_results, total, next_start_at}`. Для следующей
+страницы передайте `next_start_at` как `start_at`. `get_issue_history`
+показывает, кто, когда и что менял в задаче, с фильтром по полю, например
+`field="status"`. Для назначения задачи используйте `find_assignable_users`:
+`find_users` находит и тех, на кого назначить нельзя. Если Jira отклонила
+действие, `get_my_permissions` покажет, каких прав не хватает.
 
 ## Структура
 

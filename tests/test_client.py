@@ -146,6 +146,21 @@ class PageTest(unittest.TestCase):
 
         self.assertIsNone(client.page("board", "values", api="agile")["next_start_at"])
 
+    def test_pages_locally_when_server_ignores_paging(self, request):
+        everything = [{"id": str(i)} for i in range(5)]
+        request.return_value = {"startAt": 0, "maxResults": 5, "total": 5, "worklogs": everything}
+
+        first = client.page("issue/PROJ-1/worklog", "worklogs", max_results=2)
+        second = client.page(
+            "issue/PROJ-1/worklog", "worklogs", start_at=4, max_results=2
+        )
+
+        self.assertEqual([w["id"] for w in first["items"]], ["0", "1"])
+        self.assertEqual(first["next_start_at"], 2)
+        self.assertEqual([w["id"] for w in second["items"]], ["4"])
+        self.assertEqual(second["start_at"], 4)
+        self.assertIsNone(second["next_start_at"])
+
     def test_page_size_is_capped_by_settings(self, request):
         request.return_value = {"values": []}
 

@@ -109,8 +109,15 @@ def page(
     )
 
     items = data.get(items_key, [])
-    start = data.get("startAt", start)
     total = data.get("total")
+    if len(items) > size:
+        # Some endpoints (e.g. worklogs on Jira Server) ignore paging and
+        # return everything; page locally so the response stays bounded.
+        offset = start - data.get("startAt", 0)
+        total = total if total is not None else len(items)
+        items = items[offset : offset + size]
+    else:
+        start = data.get("startAt", start)
     if not items:
         is_last = True
     elif "isLast" in data:
