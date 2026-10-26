@@ -51,10 +51,13 @@ def change_status(
             f"Transition {new_status_name!r} is unavailable. Available: {available}"
         )
 
+    # Jira silently drops update.comment on transitions without a screen, so
+    # those get the comment as a separate request after the transition.
+    has_screen = bool(transition.get("fields"))
     payload: dict[str, Any] = {"transition": {"id": transition["id"]}}
     if fields:
         payload["fields"] = fields
-    if comment:
+    if comment and has_screen:
         payload["update"] = {"comment": [{"add": {"body": comment}}]}
 
     client.request(
@@ -63,6 +66,13 @@ def change_status(
         expected=(204,),
         json=payload,
     )
+    if comment and not has_screen:
+        client.request(
+            "POST",
+            client.issue_path(issue_key, "/comment"),
+            expected=(201,),
+            json={"body": comment},
+        )
     return {
         "key": issue_key,
         "transition_id": transition["id"],

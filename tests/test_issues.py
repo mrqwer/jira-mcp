@@ -154,34 +154,72 @@ CHANGELOG = {
 }
 
 
-@patch("jira_mcp.client.request", return_value=CHANGELOG)
+LOCALIZED_STATUSES = [
+    {"id": "1", "name": "Сделать"},
+    {"id": "3", "name": "В работе"},
+]
+
+
+def _history_responses(changelog):
+    def respond(method, path, **kwargs):
+        return LOCALIZED_STATUSES if path == "status" else changelog
+
+    return respond
+
+
+@patch("jira_mcp.client.request", side_effect=_history_responses(CHANGELOG))
 class IssueHistoryTest(unittest.TestCase):
     def test_returns_all_changes_oldest_first(self, request):
         result = get_issue_history("PROJ-1")
 
         self.assertEqual(
-            request.call_args.kwargs["params"], {"expand": "changelog", "fields": "summary"}
+            request.call_args_list[0].kwargs["params"],
+            {"expand": "changelog", "fields": "summary"},
         )
         self.assertEqual([c["id"] for c in result["changes"]], ["1", "2", "3"])
         self.assertEqual(
-            result["changes"][0]["items"][0],
-            {"field": "status", "from": "To Do", "to": "In Progress"},
+            result["changes"][0]["items"][1],
+            {"field": "assignee", "from": None, "to": "Ivan", "from_id": None, "to_id": "ivan"},
         )
         self.assertEqual(result["changes"][0]["author_username"], "ivan")
         self.assertTrue(result["history_complete"])
+
+    def test_status_names_are_shown_as_jira_displays_them_now(self, request):
+        first = get_issue_history("PROJ-1")["changes"][0]["items"][0]
+
+        self.assertEqual(
+            first,
+            {"field": "status", "from": "Сделать", "to": "В работе", "from_id": "1", "to_id": "3"},
+        )
+
+    def test_unknown_status_id_keeps_changelog_name(self, request):
+        last = get_issue_history("PROJ-1", field="status")["changes"][-1]["items"][0]
+
+        self.assertEqual((last["from"], last["to"]), ("In Progress", "Done"))
 
     def test_filters_by_field_and_limits_to_latest(self, request):
         result = get_issue_history("PROJ-1", field="Status", limit=1)
 
         self.assertEqual(result["matching_changes"], 2)
         self.assertEqual(len(result["changes"]), 1)
-        self.assertEqual(result["changes"][0]["items"], [{"field": "status", "from": "In Progress", "to": "Done"}])
+        self.assertEqual(result["changes"][0]["id"], "3")
+
+    def test_skips_status_lookup_without_status_changes(self, request):
+        request.side_effect = _history_responses(
+            {"key": "PROJ-1", "changelog": {"histories": [CHANGELOG["changelog"]["histories"][1]]}}
+        )
+
+        get_issue_history("PROJ-1")
+
+        self.assertEqual(request.call_count, 1)
 
     def test_reports_truncated_history(self, request):
-        request.return_value = {
-            "key": "PROJ-1",
-            "changelog": {"total": 250, "histories": CHANGELOG["changelog"]["histories"]},
-        }
+        request.side_effect = _history_responses(
+            {
+                "key": "PROJ-1",
+                "changelog": {"total": 250, "histories": CHANGELOG["changelog"]["histories"]},
+            }
+        )
 
         self.assertFalse(get_issue_history("PROJ-1")["history_complete"])
 
