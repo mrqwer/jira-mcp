@@ -5,6 +5,7 @@ from jira_mcp import settings
 from jira_mcp.tools.issues.create_ticket import create_ticket
 from jira_mcp.tools.issues.get_edit_fields import get_edit_fields
 from jira_mcp.tools.issues.get_issue_history import get_issue_history
+from jira_mcp.tools.issues.notify_issue import notify_issue
 from jira_mcp.tools.issues.update_ticket import update_ticket
 
 
@@ -98,6 +99,34 @@ class IssueHistoryTest(unittest.TestCase):
         }
 
         self.assertFalse(get_issue_history("PROJ-1")["history_complete"])
+
+
+@patch("jira_mcp.client.request", return_value={})
+class NotifyIssueTest(unittest.TestCase):
+    def test_notifies_users_and_roles(self, request):
+        notify_issue("PROJ-1", "Ping", "Please review", usernames=["ivan"], assignee=True)
+
+        self.assertEqual(request.call_args.args, ("POST", "issue/PROJ-1/notify"))
+        self.assertEqual(request.call_args.kwargs["expected"], (204,))
+        self.assertEqual(
+            request.call_args.kwargs["json"],
+            {
+                "subject": "Ping",
+                "textBody": "Please review",
+                "to": {
+                    "reporter": False,
+                    "assignee": True,
+                    "watchers": False,
+                    "users": [{"name": "ivan"}],
+                },
+            },
+        )
+
+    def test_requires_a_recipient(self, request):
+        with self.assertRaisesRegex(ValueError, "usernames"):
+            notify_issue("PROJ-1", "Ping", "text")
+
+        request.assert_not_called()
 
 
 @patch("jira_mcp.client.request", return_value={})

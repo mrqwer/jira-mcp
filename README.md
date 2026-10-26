@@ -359,12 +359,19 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 | `statuses`    | `get_project_statuses`, `get_all_statuses`                        |                                                    |
 | `reference`   | `get_priorities`, `get_resolutions`, `get_issue_types`            |                                                    |
 | `fields`      | `get_fields`                                                      |                                                    |
-| `issues`      | `get_ticket`, `search_tickets`, `get_edit_fields`, `get_issue_history` | `create_ticket`, `update_ticket`, `assign_ticket` |
+| `issues`      | `get_ticket`, `search_tickets`, `get_edit_fields`, `get_issue_history` | `create_ticket`, `update_ticket`, `assign_ticket`, `notify_issue` |
 | `comments`    | `get_comments`                                                    | `add_comment`, `delete_comment`                    |
 | `attachments` | `download_attachment`                                             | `add_attachment`, `delete_attachment`              |
 | `transitions` | `list_transitions`                                                | `change_status`                                    |
-| `worklogs`    | `get_worklogs`                                                    | `add_worklog`                                      |
-| `links`       | `get_link_types`, `get_remote_links`                              | `link_tickets`, `delete_link`                      |
+| `worklogs`    | `get_worklogs`                                                    | `add_worklog`, `update_worklog`, `delete_worklog`  |
+| `links`       | `get_link_types`, `get_remote_links`                              | `link_tickets`, `delete_link`, `add_remote_link`, `delete_remote_link` |
+| `watchers`    | `get_watchers`                                                    | `add_watcher`, `remove_watcher`                    |
+| `filters`     | `list_favourite_filters`, `run_filter`                            |                                                    |
+| `boards`      | `list_boards`, `get_board_config`, `get_board_issues`, `get_backlog` | `rank_issues`                                   |
+| `sprints`     | `list_sprints`, `get_sprint_issues`                               | `move_to_sprint`, `move_to_backlog`, `create_sprint`, `start_sprint`, `close_sprint` |
+| `epics`       | `list_epics`, `get_epic_issues`                                   | `add_to_epic`                                      |
+| `versions`    | `list_versions`                                                   | `create_version`, `release_version`                |
+| `components`  | `list_components`                                                 | `create_component`                                 |
 
 Перед созданием задачи или сменой статуса агент должен сначала проверить
 доступные типы, поля и переходы:
@@ -387,6 +394,19 @@ env = { JIRA_URL = "http://jira.company.local:8080", JIRA_USER = "firstname.last
 `find_users` находит и тех, на кого назначить нельзя. Если Jira отклонила
 действие, `get_my_permissions` покажет, каких прав не хватает.
 
+Доски, спринты и эпики работают через Agile API (`/rest/agile/1.0`, нужен
+Jira Software):
+
+- колонка доски и статус — разные вещи. `get_board_config` показывает, какие
+  статусы попадают в каждую колонку;
+- у канбан-досок нет спринтов и бэклога: `list_sprints` и `get_backlog`
+  работают только со скрам-досками, для канбана Jira вернет ошибку;
+- групповые операции (`move_to_sprint`, `move_to_backlog`, `add_to_epic`,
+  `rank_issues`) принимают до 50 задач за вызов.
+
+Списки досок, спринтов, эпиков и задач на них тоже постраничные, в том же
+формате `{items, ..., next_start_at}`.
+
 ## Структура
 
 ```text
@@ -395,6 +415,7 @@ src/jira_mcp/
   app.py                        # экземпляр FastMCP
   settings.py                   # настройки из env / .env
   client.py                     # HTTP-сессия Jira и общие хелперы
+  formatting.py                 # компактный вид задач в Agile-списках
   server.py                     # регистрация инструментов и запуск
   tools/<раздел>/<команда>.py   # по одному файлу на инструмент
 tests/                          # тесты по разделам
