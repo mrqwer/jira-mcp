@@ -397,7 +397,14 @@ $env:PYTHONPATH = "src"; .venv\Scripts\python.exe -m jira_mcp
 Чтобы добавить инструмент:
 
 1. Создайте `src/jira_mcp/tools/<раздел>/<команда>.py` с функцией под
-   `@mcp.tool()`. Запросы к Jira делайте через `client.request(...)`.
+   `@mcp.tool()`. Запросы к Jira делайте через `client.request(...)`:
+   - по умолчанию запрос идет в `/rest/api/2`; для досок, спринтов и эпиков
+     передайте `api="agile"` (`/rest/agile/1.0`);
+   - для списков используйте `client.page(path, items_key, start_at=...,
+     max_results=...)`. Он возвращает одну страницу в едином формате
+     `{items, start_at, max_results, total, next_start_at}` для обоих API.
+     Чтобы получить следующую страницу, передайте `next_start_at` как
+     `start_at`; на последней странице он равен `null`.
 2. Импортируйте модуль в `src/jira_mcp/tools/<раздел>/__init__.py`. Для нового
    раздела добавьте его в `src/jira_mcp/tools/__init__.py`.
 3. Добавьте имя в `EXPECTED_TOOLS` в `tests/test_server.py`, а тест — в

@@ -8,6 +8,11 @@ import requests
 
 from jira_mcp import settings
 
+API_BASES = {
+    "api": "rest/api/2",
+    "agile": "rest/agile/1.0",
+}
+
 
 @lru_cache(maxsize=1)
 def session() -> requests.Session:
@@ -36,9 +41,13 @@ def request(
     path: str,
     *,
     expected: tuple[int, ...] = (200,),
+    api: str = "api",
     **kwargs: Any,
 ) -> Any:
-    url = f"{settings.JIRA_URL}/rest/api/2/{path.lstrip('/')}"
+    """Call Jira REST. api="agile" targets /rest/agile/1.0 (boards, sprints, epics)."""
+    if api not in API_BASES:
+        raise ValueError(f"Unknown Jira API {api!r}; expected one of {sorted(API_BASES)}")
+    url = f"{settings.JIRA_URL}/{API_BASES[api]}/{path.lstrip('/')}"
 
     try:
         response = session().request(
@@ -73,3 +82,48 @@ def browse_url(issue_key: str) -> str:
 
 def bounded_results(value: int) -> int:
     return max(1, min(value, settings.JIRA_MAX_RESULTS))
+
+
+def page(
+    path: str,
+    items_key: str,
+    *,
+    start_at: int = 0,
+    max_results: int = 20,
+    params: dict[str, Any] | None = None,
+    api: str = "api",
+) -> dict[str, Any]:
+    """Fetch one page of a paginated Jira list and normalize its shape.
+
+    Handles both the core API ({startAt, maxResults, total, <items_key>}) and
+    the agile API ({startAt, maxResults, isLast, values}). The caller passes
+    next_start_at back as start_at to continue; it is None on the last page.
+    """
+    start = max(0, start_at)
+    size = bounded_results(max_results)
+    data = request(
+        "GET",
+        path,
+        params={**(params or {}), "startAt": start, "maxResults": size},
+        api=api,
+    )
+
+    items = data.get(items_key, [])
+    start = data.get("startAt", start)
+    total = data.get("total")
+    if not items:
+        is_last = True
+    elif "isLast" in data:
+        is_last = bool(data["isLast"])
+    elif total is not None:
+        is_last = start + len(items) >= total
+    else:
+        is_last = len(items) < size
+
+    return {
+        "items": items,
+        "start_at": start,
+        "max_results": size,
+        "total": total,
+        "next_start_at": None if is_last else start + len(items),
+    }
